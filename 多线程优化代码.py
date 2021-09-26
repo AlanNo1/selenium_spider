@@ -116,7 +116,7 @@ class BaolifengSpider(Thread):
             headers = self.get_headers()
             print("当前AGENT代理是：", headers)
             # 3、获取当前的代理IP列表
-            proxy = self.get_proxy(headers, freePay=True)
+            proxy = self.get_proxy(headers, freePay=False)
             print("当前获取到的IP代理是：", proxy)
             # 4、获取当前关键字的百度排名
             # order_no = self.get_keyword_order(Baolifeng, keyword)
@@ -205,7 +205,7 @@ class BaolifengSpider(Thread):
 
 if __name__ == '__main__':
     ip_pay_url = input("请输入快代理的提取API链接：")
-    for i in range(1, 8):  # 使用多进程开启7个浏览器
+    for i in range(1, 8):  # 使用多线开启7个浏览器
         t = BaolifengSpider(i, ip_pay_url)  # 创建线程，并传递参数
         t.start()
         time.sleep(5)
