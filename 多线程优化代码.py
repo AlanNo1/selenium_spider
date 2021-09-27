@@ -18,7 +18,7 @@ from threading import Thread
 
 class BaolifengSpider(Thread):
     # 初始化参数
-    def __init__(self, tname, ip_pay_url):
+    def __init__(self, tname, ip_pay_url, ifShowHeaders):
         super().__init__()
         self.i = 0  # 提取代理个数
         self.proxyList = []  # 代理列表
@@ -28,9 +28,10 @@ class BaolifengSpider(Thread):
         self.title = ['不锈钢标牌', '电铸标牌', '酒标牌', '铝标牌', '行业案例', '新闻资讯', '联系我们']  # 需要点击的标签
         self.tname = tname  # 线程名
         self.ip_pay_url = ip_pay_url
+        self.ifShowHeaders = ifShowHeaders
 
     # 获取浏览器驱动
-    def get_baidu_driver(self, proxy, headers, Ifdup=True, IfShowHeaders=True):
+    def get_baidu_driver(self, proxy, headers, Ifdup=True):
         """Ifdup:是否去重IP"""
         while Ifdup:
             # 代理去重
@@ -42,18 +43,23 @@ class BaolifengSpider(Thread):
                     return
             else:
                 break
-        print("当前使用的代理IP是：", proxy)
         option = Options()
-        if IfShowHeaders:
-            print("当前浏览器页面为有界面浏览器")
+        if self.ifShowHeaders:
+            print("当前使用的代理IP是：", proxy)
         else:
+            print("当前使用的代理IP是：", proxy)
             # 无头模式
             option.add_argument('--headless')
             option.add_argument('--no-sandbox')
             option.add_argument('--disable-dev-shm-usage')
             option.add_argument('--disable-gpu')
-            print("当前浏览器页面为无界面浏览器")
         # 设置参数
+        # option.add_argument("disable-cache")  # 禁用缓存
+        option.add_argument('--incognito')  # 隐身模式（无痕模式）
+        option.add_argument('--start-maximized')  # 最大化
+        option.add_argument('log-level=2')  # 日志等级错误
+        option.add_argument('--disable-infobars')  # 禁用浏览器正在被自动化程序控制的提示
+        option.add_argument('--blink-settings=imagesEnabled=false')  # 不加载图片, 提升速度
         option.add_argument(f'--user-agent={headers["User-Agent"]}')
         option.add_argument(f'--proxy-server={proxy}')
         baidu_driver = webdriver.Chrome(options=option)
@@ -63,17 +69,28 @@ class BaolifengSpider(Thread):
 
     # 获取代理AGENT
     def get_headers(self):
+        agent_list = ['chrome','opera','firefox','internetexplorer']
         with open('package.json') as agent:
-            USER_AGENTS = json.load(agent)['browsers']['chrome']
+            USER_AGENTS = json.load(agent)['browsers'][random.choice(agent_list)]
         headers = {
             "User-Agent": f"{random.choice(USER_AGENTS)}"
         }
         return headers
 
     # 获取当前的代理IP列表
-    def get_proxy(self, headers, freePay=True):
-        if freePay:
-            self.i += 1
+    def get_proxy(self, headers):
+        self.i += 1
+        # 付费IP,URL参考格式'http://dps.kdlapi.com/api/getdps/?orderid=953240278749313&num=1&pt=1&dedup=1&format=json&sep=1'
+        content = requests.get(self.ip_pay_url, headers=headers).content
+        proxydict = json.loads(content)
+        try:
+            proxy_List = proxydict['data']['proxy_list'][0]
+            print("当前使用付费IP-------")
+            print(f"正在提取第{self.i}个IP")
+            self.proxyList.append(proxy_List)
+            print(f'代理列表是：{self.proxyList}')
+            return random.choice(self.proxyList)
+        except:
             # 使用免费IP
             print("当前使用免费IP-------")
             try:
@@ -90,20 +107,6 @@ class BaolifengSpider(Thread):
                 return random.choice(self.proxyList)
             except:
                 return ["注意：此次是没有获取到免费代理的!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"]
-        else:
-            # 付费IP,URL参考格式'http://dps.kdlapi.com/api/getdps/?orderid=953240278749313&num=1&pt=1&dedup=1&format=json&sep=1'
-            print("当前使用付费IP-------")
-            content = requests.get(self.ip_pay_url, headers=headers).content
-            proxydict = json.loads(content)
-            try:
-                proxy_List = proxydict['data']['proxy_list'][0]
-                self.i += 1
-                print(f"正在提取第{self.i}个IP")
-                self.proxyList.append(proxy_List)
-                print(f'代理列表是：{self.proxyList}')
-                return random.choice(self.proxyList)
-            except:
-                return ["注意：此次是没有获取到付费代理的!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"]
 
     # 执行浏览器事件
     def run(self):
@@ -116,7 +119,7 @@ class BaolifengSpider(Thread):
             headers = self.get_headers()
             print("当前AGENT代理是：", headers)
             # 3、获取当前的代理IP列表
-            proxy = self.get_proxy(headers, freePay=False)
+            proxy = self.get_proxy(headers)
             print("当前获取到的IP代理是：", proxy)
             # 4、获取当前关键字的百度排名
             # order_no = self.get_keyword_order(Baolifeng, keyword)
@@ -204,8 +207,9 @@ class BaolifengSpider(Thread):
                 time.sleep(random.choice([3, 4, 5]))
 
 if __name__ == '__main__':
-    ip_pay_url = input("请输入快代理的提取API链接：")
-    for i in range(1, 8):  # 使用多线开启7个浏览器
-        t = BaolifengSpider(i, ip_pay_url)  # 创建线程，并传递参数
+    ip_pay_url = "http://dps.kdlapi.com/api/getdps/?orderid=933271581103083&num=1&pt=1&dedup=1&format=json&sep=1"
+    ifShowHeaders = 1  # 0：无界面浏览器，1：有界面浏览器
+    for i in range(1, 3):  # 使用多进程开启7个浏览器
+        t = BaolifengSpider(i, ip_pay_url,ifShowHeaders)  # 创建线程，并传递参数
         t.start()
-        time.sleep(5)
+        time.sleep(20)
