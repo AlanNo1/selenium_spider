@@ -207,9 +207,8 @@ class BaolifengSpider(Thread):
 
 if __name__ == '__main__':
     ip_pay_url = "http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=&city=0&yys=0&port=1&pack=183155&ts=0&ys=0&cs=0&lb=1&sb=0&pb=4&mr=1&regions="
-    input()
     ifShowHeaders = 1  # 0：无界面浏览器，1：有界面浏览器
-    for i in range(1, 12):  # 使用多进程开启7个浏览器
+    for i in range(1, 12):  # 使用多线程开启7个浏览器
         t = BaolifengSpider(i, ip_pay_url,ifShowHeaders)  # 创建线程，并传递参数
         t.start()
         time.sleep(30)
